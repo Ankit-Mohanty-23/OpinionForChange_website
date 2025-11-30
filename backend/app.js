@@ -15,7 +15,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5000",
+    origin: "http://localhost:5173",
     methods: "GET, POST, PUT, DELETE",
     credentials: true,
   })
@@ -24,12 +24,12 @@ app.use(
 app.use(express.json());
 app.use(
   session({
-    secret: "opinara",       // keep secret in .env in production
+    secret: "opinara", // keep secret in .env in production
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 day
-    } 
+    },
   })
 );
 
@@ -41,6 +41,6 @@ setupUser();
 
 app.use("/user", LoginRouter);
 app.use("/post", postRouter);
-app.use("/auth", authRouter)
+app.use("/auth", authRouter);
 
 export default app;
