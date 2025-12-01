@@ -11,8 +11,9 @@ const router = express.Router();
  * @access Public
  */
 
-router.get("/google", 
-    passport.authenticate("google", {scope: [ "profile", "email" ]})
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
 /**
@@ -21,21 +22,15 @@ router.get("/google",
  * @access Public
  */
 
-router.get("/google/callback", 
-    passport.authenticate("google", { failureRedirect: "/auth/fail" }),
-    (req, res) => {
-        const token = jwt.sign(
-            { id: req.user._id },
-            process.env.JWT_SECRET,
-            { expiresIn: "30d" },
-        );
-
-        res.json({
-            success: true,
-            message: "Login successful",
-            token,
-        });
-    }
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/auth/fail" }),
+  (req, res) => {
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
+    });
+    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
+  }
 );
 
 /**
@@ -45,10 +40,10 @@ router.get("/google/callback",
  */
 
 router.get("/fail", (req, res) => {
-    res.status(401).json({
-        success: false,
-        message: "login Failure",
-    });
+  res.status(401).json({
+    success: false,
+    message: "login Failure",
+  });
 });
 
 /**
@@ -58,11 +53,25 @@ router.get("/fail", (req, res) => {
  */
 
 router.get("/profile", auth, (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "User Profile",
-        user: req.user,
-    });
+  res.status(200).json({
+    success: true,
+    message: "User Profile",
+    user: req.user,
+  });
+});
+
+/**
+ * @desc   Get Current User (JWT-based)
+ * @route  GET /auth/me
+ * @access Protected (Needs JWT token)
+ */
+
+router.get("/me", auth, (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "User Profile",
+    user: req.user,
+  });
 });
 
 /**
@@ -72,12 +81,13 @@ router.get("/profile", auth, (req, res) => {
  */
 
 router.get("/logout", (req, res) => {
-    req.logOut((err) => {
-        if(err) return res.status(500).json({
-            message: "Logout Error",
-        })
-    });
-    res.redirect(process.env.CLIENT_URL || "/");
+  req.logOut((err) => {
+    if (err)
+      return res.status(500).json({
+        message: "Logout Error",
+      });
+  });
+  res.redirect(process.env.CLIENT_URL || "/");
 });
 
 export default router;
