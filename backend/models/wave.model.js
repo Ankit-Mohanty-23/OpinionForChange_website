@@ -38,11 +38,11 @@ const waveSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number],
-        required: true,
+        default: undefined
       },
     },
     isVerified: {
-      type: boolean,
+      type: Boolean,
       default: false,
     },
     postCount: {
