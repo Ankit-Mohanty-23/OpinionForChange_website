@@ -8,9 +8,18 @@ const waveSchema = new mongoose.Schema(
       trim: true,
       required: true,
     },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Description cannot exceed 500 characters"],
+      default: function () {
+        return `Welcome to ${this.name}'s wave.`;
+      },
+    },
     summary: {
       type: String,
       trim: true,
+      maxlength: [1000, "Summary cannot exceed 1000 characters"],
     },
     coverImage: {
       type: {
@@ -23,6 +32,7 @@ const waveSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Users",
       required: true,
+      index: true,
     },
     members: [
       {
@@ -38,7 +48,19 @@ const waveSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number],
-        default: undefined
+        validate: {
+          validator: function (v) {
+            // For Point type, coordinates must be [longitude, latitude]
+            return (
+              !v ||
+              (Array.isArray(v) &&
+                v.length === 2 &&
+                v.every((coord) => typeof coord === "number"))
+            );
+          },
+          message:
+            "Coordinates must be an array of exactly 2 numbers [longitude, latitude]",
+        },
       },
     },
     isVerified: {
@@ -48,7 +70,7 @@ const waveSchema = new mongoose.Schema(
     postCount: {
       type: Number,
       default: 0,
-    },
+    }
   },
   {
     timestamps: true,
@@ -56,4 +78,6 @@ const waveSchema = new mongoose.Schema(
 );
 
 waveSchema.index({ location: "2dsphere" });
+waveSchema.index({ createdAt: -1 });
+
 export default mongoose.model("Wave", waveSchema);
