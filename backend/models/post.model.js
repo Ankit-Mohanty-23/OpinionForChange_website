@@ -41,68 +41,10 @@ const postSchema = new mongoose.Schema(
         },
       },
     ],
-    upvotes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
-      },
-    ],
-    downvotes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Users",
-      },
-    ],
-    comments: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Users",
-          required: true,
-        },
-        username: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        text: {
-          type: String,
-          required: true,
-          trim: true,
-          maxlength: [1000, "Comment cannot exceed 1000 characters"],
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-  },
-  {
-    timestamps: true,
-  }
+  },{ timestamps: true }
 );
 
 // Add index for sorting by newest posts
 postSchema.index({ createdAt: -1 });
-
-// Virtual for readable timestamps (doesn't store, computed on demand)
-postSchema.virtual("readableCreatedAt").get(function () {
-  return this.createdAt?.toLocaleString("en-IN", {
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-});
-
-postSchema.virtual("readableUpdatedAt").get(function () {
-  return this.updatedAt?.toLocaleString("en-IN", {
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-});
-
-// Include virtuals in JSON output
-postSchema.set("toJSON", { virtuals: true });
-postSchema.set("toObject", { virtuals: true });
 
 export default mongoose.model("Post", postSchema);
