@@ -5,22 +5,15 @@ import checkToxicity from "/Llama-setup/toxicity-check.js";
 
 /**
  * @desc    Create new post
- * @route   POST /post/create
- * @access  Public
+ * @route   POST /:waveId/create-post
+ * @access  Private
  */
 
 export async function createPost(req, res) {
   try {
-    const title = req.body?.title || "";
-    const content = req.body?.content || "";
-    const author = req.user?._id || "";
-
-    if (!author || !title || !content) {
-      return res.status(400).json({
-        success: false,
-        msg: "Please provide author, title and content",
-      });
-    }
+    const { title, content } = req.body;
+    const userId = req.user?._id;
+    const { waveId } = req.params || {};
 
     let media = [];
     if (req.files && req.files.length > 0) {
@@ -31,25 +24,23 @@ export async function createPost(req, res) {
       }));
     }
 
-    const newPost = new Post({
-      author,
+    const newPost = await Post.create({
+      userId,
+      waveId,
       title,
       content,
       media,
     });
 
-    const savedPost = await newPost.save();
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      post: savedPost,
+      data: newPost,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Error creating post: ", error);
+    return res.status(500).json({
       success: false,
-      msg: "Failed in creating new post",
-      error: error.message,
+      msg: "Internal server error while creating post",
     });
   }
 }
@@ -62,57 +53,58 @@ export async function createPost(req, res) {
 
 export async function getAllPosts(req, res) {
   try {
-    const author = req.user?._id;
+    const userId = req.user?._id;
 
-    const posts = await Post.find({author});
+    const posts = await Post.find({ userId }).lean().exec();
+
     if (posts.length === 0) {
       return res.status(404).json({
         success: false,
-        msg: "No posts found! ",
+        msg: "Posts not found! ",
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      posts: posts,
+      data: posts,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Error getting all posts: ", error);
+    return res.status(500).json({
       success: false,
-      msg: "Failed in fetching posts",
-      error: error.message,
+      msg: "Internal server error while fetching posts",
     });
   }
 }
 
 /**
  * @desc    Get any specific post
- * @route   GET /post/:postId
+ * @route   GET /:postId
  * @access  Public
  */
 
 export async function getPost(req, res) {
   try {
-    const postId = req.params.postId;
+    const { postId } = req.params;
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).lean().exec();
+
     if (!post) {
       return res.status(404).json({
         success: false,
         msg: "Post not found! ",
       });
     }
-    res.status(200).json({
+
+    return res.status(200).json({
       success: true,
-      post: post,
+      data: post,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Error getting post: ", error);
+    return res.status(500).json({
       success: false,
-      msg: "Failed in fetching post",
-      error: error.message,
+      msg: "Internal server error while fetching post",
     });
   }
 }
@@ -120,26 +112,27 @@ export async function getPost(req, res) {
 /**
  * @desc    Delete post
  * @route   DELETE post/:postId
- * @access  Public
+ * @access  Private
  */
 
 export async function deletePost(req, res) {
   try {
-    const validUser = req.user?._id;
-    const postId = req.params.postId;
-    const deletedPost = await Post.findById({ _id: postId });
+    const userId = req.user?._id;
+    const { postId } = req.params;
+
+    const deletedPost = await Post.findById(postId).lean().exec();
 
     if (!deletedPost) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
         msg: "Post not found",
       });
     }
 
-    if (validUser === deletedPost.author) {
-      return res.status(400).json({
+    if (deletedPost.userId.toString() !== userId.toString()) {
+      return res.status(403).json({
         success: false,
-        msg: "Invalid User",
+        msg: "Invalid User, You are not allowed to delete this post",
       });
     }
 
@@ -154,18 +147,17 @@ export async function deletePost(req, res) {
       }
     }
 
-    await Post.findByIdAndDelete({ _id: postId });
+    await Post.findByIdAndDelete(postId);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      post: deletedPost,
+      data: deletedPost,
     });
   } catch (error) {
-    console.log("error in deleting post: ", error);
-    res.status(500).json({
+    console.log("Error deleting post: ", error);
+    return res.status(500).json({
       success: false,
       msg: "Failed to Delete post",
-      error: error.message,
     });
   }
 }
@@ -182,7 +174,7 @@ export async function toggleVote(req, res) {
     const postId = req.params.postId;
     const { action } = req.body;
 
-    const post = await Post.findById({ _id: postId });
+    const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -246,54 +238,54 @@ export async function toggleVote(req, res) {
  * @access  Public
  */
 
-export async function addComment(req, res){
-    try{
-        const userId = req.user?._id;
-        const postId = req.params.postId;
-        const { content } = req.body;
+export async function addComment(req, res) {
+  try {
+    const userId = req.user?._id;
+    const postId = req.params.postId;
+    const { content } = req.body;
 
-        if (!content || !content.trim()) {
-            return res.status(400).json({
-                success: false,
-                msg: "Comment content is required"
-            });
-        }
-
-        const post = await Post.findById({ _id: postId });
-        if(!post){
-            return res.status(404).json({
-                success: false,
-                msg: "Post not found"
-            });
-        }
-
-        // Fetch user to get username
-        const user = await Users.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                msg: "User not found"
-            });
-        }
-
-        post.comments.push({
-            user: userId,
-            username: user.fullname,
-            text: content.trim(),
-        });
-        await post.save();
-
-        res.status(200).json({
-          success: true,
-          post: post
-        })
-    }catch(error){
-      res.status(500).json({
+    if (!content || !content.trim()) {
+      return res.status(400).json({
         success: false,
-        msg: "Error in commenting",
-        error: error.message
+        msg: "Comment content is required",
       });
     }
+
+    const post = await Post.findById({ _id: postId });
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        msg: "Post not found",
+      });
+    }
+
+    // Fetch user to get username
+    const user = await Users.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
+
+    post.comments.push({
+      user: userId,
+      username: user.fullname,
+      text: content.trim(),
+    });
+    await post.save();
+
+    res.status(200).json({
+      success: true,
+      post: post,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      msg: "Error in commenting",
+      error: error.message,
+    });
+  }
 }
 
 /**
@@ -302,40 +294,41 @@ export async function addComment(req, res){
  * @access  Public
  */
 
-export async function classifier(req, res){
-  try{
+export async function classifier(req, res) {
+  try {
     const postId = req.params.postId;
 
-    const post = await Post.findById({ _id: postId });
+    const post = await Post.findById(postId);
 
-    if(!post){
-      return res.status(404),json({
+    if (!post) {
+      return res.status(404).json({
         success: false,
-        msg: "Post not found for classifying!"
-      })
+        msg: "Post not found for classifying!",
+      });
     }
 
     const title = post.title;
     const context = post.content;
 
+    const titleResult = await checkToxicity(title);
     const contextResult = await checkToxicity(context);
 
-    if(!contextResult && !titleResult){
+    if (!contextResult && !titleResult) {
       return res.status(400).json({
         success: false,
         msg: `Classification failed for ${title}`,
-      })
+      });
     }
 
     res.status(200).json({
       success: true,
       class: contextResult,
-    }) 
-  }catch(error){
+    });
+  } catch (error) {
     res.status(500).json({
       success: false,
       msg: "Failed in Classification of content",
       error: error.message,
-    })
+    });
   }
 }
