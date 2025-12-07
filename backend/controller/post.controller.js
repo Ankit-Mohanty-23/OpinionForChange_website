@@ -40,7 +40,7 @@ export async function createPost(req, res) {
     console.error("Error creating post: ", error);
     return res.status(500).json({
       success: false,
-      msg: "Internal server error while creating post",
+      message: "Internal server error while creating post",
     });
   }
 }
@@ -60,7 +60,7 @@ export async function getAllPosts(req, res) {
     if (posts.length === 0) {
       return res.status(404).json({
         success: false,
-        msg: "Posts not found! ",
+        message: "Posts not found! ",
       });
     }
 
@@ -72,7 +72,7 @@ export async function getAllPosts(req, res) {
     console.error("Error getting all posts: ", error);
     return res.status(500).json({
       success: false,
-      msg: "Internal server error while fetching posts",
+      message: "Internal server error while fetching posts",
     });
   }
 }
@@ -92,7 +92,7 @@ export async function getPost(req, res) {
     if (!post) {
       return res.status(404).json({
         success: false,
-        msg: "Post not found! ",
+        message: "Post not found! ",
       });
     }
 
@@ -104,7 +104,7 @@ export async function getPost(req, res) {
     console.error("Error getting post: ", error);
     return res.status(500).json({
       success: false,
-      msg: "Internal server error while fetching post",
+      message: "Internal server error while fetching post",
     });
   }
 }
@@ -125,14 +125,14 @@ export async function deletePost(req, res) {
     if (!deletedPost) {
       return res.status(404).json({
         success: false,
-        msg: "Post not found",
+        message: "Post not found",
       });
     }
 
     if (deletedPost.userId.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        msg: "Invalid User, You are not allowed to delete this post",
+        message: "Invalid User, You are not allowed to delete this post",
       });
     }
 
@@ -157,133 +157,7 @@ export async function deletePost(req, res) {
     console.log("Error deleting post: ", error);
     return res.status(500).json({
       success: false,
-      msg: "Failed to Delete post",
-    });
-  }
-}
-
-/**
- * @desc    Handle Vote for a post
- * @route   PATCH post/:postId/vote
- * @access  Public
- */
-
-export async function toggleVote(req, res) {
-  try {
-    const userId = req.user?._id;
-    const postId = req.params.postId;
-    const { action } = req.body;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        msg: "Post not found",
-      });
-    }
-
-    let updatedPost;
-    if (action === "upvote") {
-      if (post.upvotes.includes(userId)) {
-        updatedPost = await Post.findByIdAndUpdate(
-          post,
-          { $pull: { upvotes: userId } },
-          { new: true }
-        );
-      } else {
-        updatedPost = await Post.findByIdAndUpdate(
-          post,
-          { $addToSet: { upvotes: userId }, $pull: { downvotes: userId } },
-          { new: true }
-        );
-      }
-    } else if (action === "downvote") {
-      if (post.downvotes.includes(userId)) {
-        updatedPost = await Post.findByIdAndUpdate(
-          post,
-          { $pull: { downvotes: userId } },
-          { new: true }
-        );
-      } else {
-        updatedPost = await Post.findByIdAndUpdate(
-          post,
-          { $addToSet: { downvotes: userId }, $pull: { upvotes: userId } },
-          { new: true }
-        );
-      }
-    } else {
-      return res.status(400).json({
-        success: false,
-        msg: "Invalid vote action",
-      });
-    }
-
-    res.status(201).json({
-      success: true,
-      upvote: updatedPost.upvotes.length,
-      downvotes: updatedPost.downvotes.length,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      msg: "Failed in updating vote",
-      error: error.message,
-    });
-  }
-}
-
-/**
- * @desc    Comments for a post
- * @route   POST post/:postId/comment/
- * @access  Public
- */
-
-export async function addComment(req, res) {
-  try {
-    const userId = req.user?._id;
-    const postId = req.params.postId;
-    const { content } = req.body;
-
-    if (!content || !content.trim()) {
-      return res.status(400).json({
-        success: false,
-        msg: "Comment content is required",
-      });
-    }
-
-    const post = await Post.findById({ _id: postId });
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        msg: "Post not found",
-      });
-    }
-
-    // Fetch user to get username
-    const user = await Users.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        msg: "User not found",
-      });
-    }
-
-    post.comments.push({
-      user: userId,
-      username: user.fullname,
-      text: content.trim(),
-    });
-    await post.save();
-
-    res.status(200).json({
-      success: true,
-      post: post,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      msg: "Error in commenting",
-      error: error.message,
+      message: "Internal server error while deleting post",
     });
   }
 }
@@ -303,7 +177,7 @@ export async function classifier(req, res) {
     if (!post) {
       return res.status(404).json({
         success: false,
-        msg: "Post not found for classifying!",
+        message: "Post not found for classifying!",
       });
     }
 
@@ -316,7 +190,7 @@ export async function classifier(req, res) {
     if (!contextResult && !titleResult) {
       return res.status(400).json({
         success: false,
-        msg: `Classification failed for ${title}`,
+        message: `Classification failed for ${title}`,
       });
     }
 
@@ -327,8 +201,7 @@ export async function classifier(req, res) {
   } catch (error) {
     res.status(500).json({
       success: false,
-      msg: "Failed in Classification of content",
-      error: error.message,
+      message: "Internal server error while classifying post",
     });
   }
 }
