@@ -14,13 +14,6 @@ export async function addComment(req, res) {
       const postId = req.params.postId;
       const { content } = req.body;
   
-      if (!content || !content.trim()) {
-        return res.status(400).json({
-          success: false,
-          msg: "Comment content is required",
-        });
-      }
-  
       const post = await Post.findById({ _id: postId });
       if (!post) {
         return res.status(404).json({
