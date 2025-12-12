@@ -1,13 +1,13 @@
 # 🗣️ OpinionForChange
 
-**OpinionForChange** is a social platform where people can share opinions, vote on ideas, and collectively address social issues.  
+**OpinionForChange** is a social platform where people can share opinions, vote on ideas, and collectively address social issues.
 This project is currently **under active development** 🚧.
 
 ---
 
 ## 🚀 Project Status
 
-🔨 Work in Progress – Features are being built step by step.  
+🔨 Work in Progress – Features are being built step by step.
 Check back soon for updates!
 
 ---
@@ -34,9 +34,9 @@ Check back soon for updates!
 
 ## 📅 Roadmap
 
-- [ ] Setup backend with Express + MongoDB
-- [ ] User authentication system
-- [ ] Post & voting APIs
+- [X] Setup backend with Express + MongoDB
+- [X] User authentication system
+- [X] Post & voting APIs
 - [ ] React frontend setup
 - [ ] Feed + profile pages
 - [ ] Deploy to Vercel/Render
