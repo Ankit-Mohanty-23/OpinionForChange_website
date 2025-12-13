@@ -70,7 +70,7 @@ const waveSchema = new mongoose.Schema(
     postCount: {
       type: Number,
       default: 0,
-    }
+    },
   },
   {
     timestamps: true,
