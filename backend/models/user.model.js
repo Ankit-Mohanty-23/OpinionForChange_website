@@ -82,22 +82,5 @@ userSchema.methods.comparePassword = async function (testpassword) {
 
 userSchema.index({ createdAt: -1 });
 
-userSchema.virtual("readableCreatedAt").get(function () {
-  return this.createdAt?.toLocaleString("en-IN", {
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-});
-
-userSchema.virtual("readableUpdatedAt").get(function () {
-  return this.updatedAt?.toLocaleString("en-IN", {
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-});
-
-userSchema.set("toJSON", { virtuals: true });
-userSchema.set("toObject", { virtuals: true });
-
 const Users = mongoose.model("Users", userSchema);
 export default Users;
