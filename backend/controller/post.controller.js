@@ -136,7 +136,7 @@ export async function deletePost(req, res) {
       });
     }
 
-    // Delete all media files from Cloudinary
+    //Delete all media files from Cloudinary
     if (deletedPost.media && deletedPost.media.length > 0) {
       for (const item of deletedPost.media) {
         if (item.public_id) {
@@ -168,40 +168,42 @@ export async function deletePost(req, res) {
  * @access  Public
  */
 
-// export async function classifier(req, res) {
-//   try {
-//     const postId = req.params.postId;
+export async function classifier(req, res) {
+  try {
+    const postId = req.params.postId;
 
-//     const post = await Post.findById(postId);
+    const post = await Post.findById(postId);
 
-//     if (!post) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Post not found for classifying!",
-//       });
-//     }
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Post not found for classifying!",
+      });
+    }
 
-//     const title = post.title;
-//     const context = post.content;
+    const title = post.title;
+    const context = post.content;
 
-//     const titleResult = await checkToxicity(title);
-//     const contextResult = await checkToxicity(context);
+    const titleResult = await checkToxicity(title);
+    const contextResult = await checkToxicity(context);
 
-//     if (!contextResult && !titleResult) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `Classification failed for ${title}`,
-//       });
-//     }
+    if (!contextResult && !titleResult) {
+      return res.status(400).json({
+        success: false,
+        message: `Classification failed for ${title}`,
+      });
+    }
 
-//     res.status(200).json({
-//       success: true,
-//       class: contextResult,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: "Internal server error while classifying post",
-//     });
-//   }
-// }
+    res.status(200).json({
+      success: true,
+      class: contextResult,
+    });
+
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while classifying post",
+    });
+  }
+}
