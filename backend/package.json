@@ -32,7 +32,8 @@
     "nodemailer": "^7.0.6",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "zod": "^4.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
