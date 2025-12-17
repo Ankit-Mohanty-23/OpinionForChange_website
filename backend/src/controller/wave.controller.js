@@ -5,7 +5,7 @@ import summarize from "/Llama-setup/summarizer.js";
 
 /**
  * @desc    Create new wave
- * @route   GET /create/wave
+ * @route   POST /wave/create
  * @access  Public
  */
 
@@ -13,13 +13,6 @@ export async function createWave(req, res) {
   try {
     const { name, description } = req.body;
     const userId = req.user?._id;
-
-    if (!name || !description || !userId) {
-      return res.status(400).json({
-        success: false,
-        msg: "please provide Name, description and userId.",
-      });
-    }
 
     let media = null;
     if (req.file) {
@@ -29,29 +22,23 @@ export async function createWave(req, res) {
       };
     }
 
-    const response = await new Wave({
+    const response = await Wave.create({
       name,
       description,
       coverImage: media,
       createdBy: userId,
-    }).save();
-
-    if (!response) {
-      return res.status(400).json({
-        success: false,
-        msg: "Failed to save Wave",
-      });
-    }
+    });
 
     res.status(201).json({
       success: true,
-      msg: "New Wave created!",
+      data: response
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.error("Error creating wave: ", error);
+    return res.status(500).json({
       success: false,
-      msg: "Failed to create new Wave",
-      error: error.message,
+      message: "Internal server error while creating wave",
     });
   }
 }
@@ -74,7 +61,7 @@ export async function getWavePosts(req, res) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(10)
-      .select("title content media upvotes downvotes createdAt") // field selection
+      .select("title content media ") // field selection
       .populate("userId", "fullname profilePic");
 
     if (posts.length === 0) {
@@ -87,14 +74,14 @@ export async function getWavePosts(req, res) {
     res.status(200).json({
       success: true,
       page,
-      posts: posts,
+      data: posts,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Error fetching wave post: ", error);
+    return res.status(500).json({
       success: false,
-      msg: "Failed in fetching posts",
-      error: error.message,
+      message: "Internal server error while fetching wave post",
     });
   }
 }
