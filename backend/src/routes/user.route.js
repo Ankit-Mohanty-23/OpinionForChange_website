@@ -8,15 +8,32 @@ import {
   SendOtp,
   addBio,
   addProfilePic,
+  deleteUser,
 } from "../controller/user.controller.js";
+import {
+  loginSchema,
+  signupSchema,
+  getUserIdSchema,
+  getOtpSchema,
+  getBioSchema,
+  profilepicSchema,
+} from "../validation/user.validation.js";
+import { validate, validateFile } from "../middleware/validate.middleware.js";
 
 const Router = express.Router();
 
-Router.post("/signup", signup);
-Router.post("/login", login);
-Router.post("/verify", SendOtp);
-Router.get("/data", auth, getUser);
-Router.put("/bio", auth, addBio);
-Router.post("/profile-pic", auth, upload.single("profile_pic"), addProfilePic);
+Router.post("/signup", validate(loginSchema), signup);
+Router.post("/login", validate(signupSchema), login);
+Router.post("/verify", validate(getOtpSchema), SendOtp);
+Router.get("/data", auth, validate(getUserIdSchema), getUser);
+Router.delete("/delete", auth, validate(getUserIdSchema), deleteUser);
+Router.put("/bio", auth, validate(getBioSchema), addBio);
+Router.post(
+  "/profile-pic",
+  auth,
+  upload.single("profile_pic"),
+  validateFile(profilepicSchema),
+  addProfilePic
+);
 
 export default Router;
