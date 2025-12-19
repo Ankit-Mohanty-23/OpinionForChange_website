@@ -63,9 +63,14 @@ const waveSchema = new mongoose.Schema(
         },
       },
     },
-    isVerified: {
+    isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Boolean,
+      default: null,
     },
     postCount: {
       type: Number,

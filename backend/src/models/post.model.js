@@ -11,6 +11,7 @@ const postSchema = new mongoose.Schema(
     waveId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Wave",
+      default: null,
       index: true,
     },
     title: {
@@ -50,6 +51,11 @@ const postSchema = new mongoose.Schema(
     commentCount: {
       type: Number,
       default: 0,
+    },
+    isOrphaned: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     isDeleted: {
       type: Boolean,
