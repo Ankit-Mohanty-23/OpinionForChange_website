@@ -1,7 +1,7 @@
 import { z } from "zod";
 import mongoose from "mongoose";
 
-const objectSchema = z.string().refine(
+const objectIdSchema = z.string().refine(
     (id) => mongoose.Schema.Types.ObjectId.isValid(id), {
         message: "Invalid mongoose Id"
     }
@@ -9,22 +9,22 @@ const objectSchema = z.string().refine(
 
 export const createCommentSchema = {
     user: z.object({
-        _id: objectSchema,
+        _id: objectIdSchema,
     }),
 
     params: z.object({
-        postId: objectSchema,
+        postId: objectIdSchema,
     }),
 
     body: z.object({
         content: z.string().trim().min(1, "Required comment content"),
-        parentComment: objectSchema.optional().nullable(),
+        parentComment: objectIdSchema.optional().nullable(),
     })
 };
 
 export const getCommentSchema = {
     params: z.object({
-        postId: objectSchema,
+        postId: objectIdSchema,
     }),
 
     query: z.object({
@@ -45,6 +45,16 @@ export const getCommentSchema = {
 
 export const getRepliesSchema = {
     params: z.object({
-        commentId: objectSchema
+        commentId: objectIdSchema
+    }),
+}
+
+export const deleteCommentSchema = {
+    params: z.object({
+        commentId: objectIdSchema
+    }),
+
+    user: z.object({
+        _id: objectIdSchema,
     }),
 }
