@@ -1,7 +1,7 @@
 {
-  "name": "website_opinionforchange",
+  "name": "website_Opinara",
   "version": "1.0.0",
-  "description": "reddit clone, but for opinion of society",
+  "description": "reddit inspired, for opinion of society/people",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -10,14 +10,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Ankit-Mohanty-23/OpinionForChange_website.git"
+    "url": "git+https://github.com/Ankit-Mohanty-23/Opinara.git"
   },
   "author": "Ankit Mohanty",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Ankit-Mohanty-23/OpinionForChange_website/issues"
+    "url": "https://github.com/Ankit-Mohanty-23/Opinara/issues"
   },
-  "homepage": "https://github.com/Ankit-Mohanty-23/OpinionForChange_website#readme",
+  "homepage": "https://github.com/Ankit-Mohanty-23/Opinara#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cloudinary": "^1.41.3",
