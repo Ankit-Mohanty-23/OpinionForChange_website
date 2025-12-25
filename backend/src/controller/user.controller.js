@@ -5,6 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 import Post from "../models/post.model.js";
 import Comment from "../models/comment.model.js";
 import Vote from "../models/vote.model.js";
+import logger from "../util/logger.js";
 
 /**
  * @desc    Create new User
@@ -13,32 +14,44 @@ import Vote from "../models/vote.model.js";
  */
 
 export async function signup(req, res) {
+  const { email, fullname, password } = req.body;
+
+  const logContext = {
+    action: "SIGNUP",
+    email,
+  };
+
   try {
-    const { email, fullname, password } = req.body;
-   
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        msg: "User already exits",
+        message: "User already exits",
       });
     }
-    const newUser = await new User({
+
+    await User.create({
       googleId: "Custom Signup",
       email,
       fullname,
       password,
-    }).save();
+    });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      msg: "New User Created",
+      message: "New User Created",
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      msg: "Signup Failed",
+    logger.error("User signup failed", {
+      ...logContext,
       error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 }
@@ -46,18 +59,23 @@ export async function signup(req, res) {
 /**
  * @desc    Get Login
  * @route   POST /user/login
- * @access  Public
+ * @access  Protected
  */
 
 export async function login(req, res) {
+  const { email, password } = req.body;
+
+  const logContext = {
+    action: "LOGIN",
+    email: email,
+  };
+
   try {
-    const { email, password } = req.body;
-    
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(401).json({
         success: false,
-        msg: "Invalid credentials",
+        message: "Invalid credentials",
       });
     }
 
@@ -66,23 +84,30 @@ export async function login(req, res) {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        msg: "Invalid credentials",
+        message: "Invalid credentials",
       });
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "30d",
+      issuer: "opinara-api",
+      audience: "opinara-client",
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       token,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      msg: "Login Failed",
+    logger.error("User login failed: ", {
+      ...logContext,
       error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 }
@@ -90,31 +115,44 @@ export async function login(req, res) {
 /**
  * @desc    Get user details
  * @route   GET /user/data
- * @access  Public
+ * @access  Protected
  */
 
 export async function getUser(req, res) {
-  try {
-    const userId = req.user?._id;
+  const userId = req.user?._id;
 
-    const UserData = await User.findOne({ _id: userId });
+  const logContext = {
+    action: "GET_USER",
+    userId: userId,
+  };
+
+  try {
+    const UserData = await User.findOne({ _id: userId })
+      .select(" fullname email wave profilePic bio isDeleted ")
+      .lean()
+      .exec();
 
     if (!UserData) {
       return res.status(404).json({
         success: false,
-        msg: "User Data not found",
+        message: "User Data not found",
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: UserData,
     });
   } catch (error) {
+    logger.error("Error getting user: ", {
+      ...logContext,
+      error: error.message,
+      stack: error.stack,
+    });
+
     return res.status(500).json({
       success: false,
-      msg: "Server error: Error in getUser API",
-      error: error.message,
+      message: "Internal Server Error",
     });
   }
 }
@@ -122,35 +160,46 @@ export async function getUser(req, res) {
 /**
  * @desc    Get email verification
  * @route   POST /user/verify
- * @access  Public
+ * @access  Protected
  */
 
-export async function SendOtp(req, res) {
-  try {
-    const { email, fullname } = req.body;
+export async function sendOtp(req, res) {
+  const { email, fullname } = req.body;
 
+  const logContext = {
+    action: "SEND_OTP",
+    email: email,
+  };
+
+  try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log("sending email.."); // 6-digit OTP
+    console.info("sending email.."); // 6-digit OTP
     const sentEmail = await sendMail(fullname, email, otp);
 
     if (!sentEmail.success) {
-      return res.status(500).json({
+      return res.status(502).json({
         success: false,
-        msg: sentEmail.message,
+        message: sentEmail.message,
         error: sentEmail.error,
         mail: email,
       });
     }
 
-    res.status(200).json({
-      msg: "Verification email sent successfully",
-      otp: otp,
+    return res.status(200).json({
+      success: true,
+      message: "Verification email sent successfully",
     });
   } catch (error) {
+    logger.error("Error sending OTP: ", {
+      ...logContext,
+      error: error.message,
+      stack: error.stack,
+    });
+
     return res.status(500).json({
-      msg: "Server error: Error in verification API",
-      error: error,
+      success: false,
+      message: "Internal Server Error",
     });
   }
 }
@@ -158,31 +207,42 @@ export async function SendOtp(req, res) {
 /**
  * @desc    Add bio for profile
  * @route   POST /user/bio
- * @access  Public
+ * @access  Protected
  */
 
 export async function addBio(req, res) {
-  try {
-    const userId = req.user?._id;
-    const { bio } = req.body;
+  const userId = req.user?._id;
+  const { bio } = req.body;
 
+  const logContext = {
+    action: "UPDATE_BIO",
+    userId: userId,
+  };
+
+  try {
     const newBio = await User.findByIdAndUpdate(userId, { bio }, { new: true });
 
     if (!newBio) {
       return res.status(404).json({
         success: false,
-        msg: "No user found",
+        message: "No user found",
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      msg: "User bio updated",
+      message: "User bio updated",
     });
   } catch (error) {
-    res.status(500).json({
-      msg: "Error adding Bio",
+    logger.error("Error adding user BIO: ", {
+      ...logContext,
       error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 }
@@ -194,20 +254,25 @@ export async function addBio(req, res) {
  */
 
 export async function addProfilePic(req, res) {
+  const userId = req.user?._id;
+
+  const logContext = {
+    action: "UPDATE_PROFILE_PICTURE",
+    userId: userId,
+  };
+
   try {
-    const userId = req.user?._id;
- 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
-        msg: "User not found",
+        message: "User not found",
       });
     }
 
-    if (user.profile_pic?.public_id) {
+    if (user.profile_pic?.Protected_id) {
       try {
-        await cloudinary.uploader.destroy(user.profile_pic.public_id);
+        await cloudinary.uploader.destroy(user.profile_pic.Protected_id);
       } catch (cloudinaryError) {
         console.error("Error deleting old profile picture:", cloudinaryError);
       }
@@ -219,7 +284,7 @@ export async function addProfilePic(req, res) {
         profile_pic: {
           type: "image",
           url: req.file.path,
-          public_id: req.file.filename || req.file.public_id,
+          public_id: req.file.filename,
         },
       },
       { new: true }
@@ -228,20 +293,25 @@ export async function addProfilePic(req, res) {
     if (!updatedUser) {
       return res.status(404).json({
         success: false,
-        msg: "Failed to update profile picture",
+        message: "Failed to update profile picture",
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      msg: "Profile picture updated successfully",
+      message: "Profile picture updated successfully",
       profile_pic: updatedUser.profile_pic,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      msg: "Error updating profile picture",
+    logger.error("Error adding profile pic: ", {
+      ...logContext,
       error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
     });
   }
 }
@@ -252,19 +322,24 @@ export async function addProfilePic(req, res) {
  * @access  Protected
  */
 
-export async function deleteUser(req, res){
-  try{
-    const userId = req.user?._id;
-    
+export async function deleteUser(req, res) {
+  const userId = req.user?._id;
+
+  const logContext = {
+    action: "DELETE_USER",
+    userId: userId,
+  };
+
+  try {
     const user = await User.findById(userId);
-    if(!user || user.isDeleted){
-      res.status(404).json({
+    if (!user || user.isDeleted) {
+      return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    const [ postCount, commentCount, voteCount ] = await Promise.all([
+    const [postCount, commentCount, voteCount] = await Promise.all([
       Post.countDocuments({ userId }),
       Comment.countDocuments({ userId }),
       Vote.countDocuments({ userId }),
@@ -273,10 +348,10 @@ export async function deleteUser(req, res){
     const hasActivity = postCount > 0 || commentCount > 0 || voteCount > 0;
 
     /**
-   * CASE 1: No activity → Hard delete
-   */
+     * CASE 1: No activity → Hard delete
+     */
 
-    if(!hasActivity){
+    if (!hasActivity) {
       await User.findByIdAndDelete({ _id: userId });
 
       return res.status(200).json({
@@ -286,8 +361,8 @@ export async function deleteUser(req, res){
     }
 
     /**
-   * CASE 2: Has activity → Soft delete + cascade hide
-   */
+     * CASE 2: Has activity → Soft delete + cascade hide
+     */
 
     const now = new Date();
 
@@ -309,12 +384,16 @@ export async function deleteUser(req, res){
       success: true,
       message: "User account is deleted successfully",
     });
+  } catch (error) {
+    logger.error("Error deleting user: ", {
+      ...logContext,
+      error: error.message,
+      stack: error.stack,
+    });
 
-  }catch(error){
-    console.error("Error deleting user: ", error);
     return res.status(500).json({
       success: false,
-      message: "Internal server error while deleting user account",
+      message: "Internal Server Error",
     });
   }
 }
