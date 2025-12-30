@@ -1,6 +1,7 @@
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
+import AppError from "../util/AppError";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -12,7 +13,10 @@ const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
 
   if (!allowedMimeTypes.includes(file.mimetype)) {
-    return cb(new Error("Only JPG, PNG, and WEBP images are allowed"), false);
+    return cb(
+      new AppError("Only JPG, PNG, and WEBP images are allowed", 400),
+      false
+    );
   }
 
   cb(null, true);
@@ -23,7 +27,7 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     return {
       folder: "Opinara",
-      resource_type: "auto",
+      resource_type: "image",
       public_id: `${Date.now()} -${Math.round(Math.random() * 1e9)}`,
     };
   },
@@ -32,7 +36,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage,
   fileFilter,
-  limit: {
+  limits: {
     fileSize: 5 * 1024 * 1024,
   },
 });
