@@ -5,7 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 import Post from "../models/post.model.js";
 import Comment from "../models/comment.model.js";
 import Vote from "../models/vote.model.js";
-import { AppError } from "../util/AppError.js";
+import AppError from "../util/AppError.js";
 import { asyncHandler } from "../util/asyncHandler.js";
 
 /**
@@ -20,7 +20,7 @@ export const signup = asyncHandler(async (req, res) => {
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
-    throw new AppError("User already exists", 409);
+    throw new AppError("User already exists, Login instead.", 409);
   }
 
   await User.create({
