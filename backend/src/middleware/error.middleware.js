@@ -1,4 +1,6 @@
 import AppError from "../util/AppError.js";
+import multer from "multer";
+import logger from "../util/logger.js";
 
 export default function globalErrorHandler(err, req, res, next){
     let error = err;
