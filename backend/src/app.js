@@ -8,6 +8,7 @@ import session from "express-session";
 import setupUser from "./services/passport.js";
 import authRouter from "./controller/google.auth.controller.js";
 import globalErrorHandler from "./middleware/error.middleware.js";
+import AppError from "./util/AppError.js";
 
 console.log = (...args) => logger.debug(args.join(" "));
 console.error = (...args) => logger.error(args.join(" "));
@@ -46,9 +47,6 @@ app.use("/user", LoginRouter);
 app.use("/posts", postRouter);
 app.use("/auth", authRouter);
 
-app.all("*", (req, res, next) => {
-  next(new AppError(`Route not found: ${req.originalUrl}`, 404));
-});
 app.use(globalErrorHandler);
 
 export default app;
