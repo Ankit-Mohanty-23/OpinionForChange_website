@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import sendMail from "../services/sendEmails.js";
@@ -193,42 +194,61 @@ export const deleteUser = asyncHandler(async (req, res) => {
   ]);
 
   const hasActivity = postCount > 0 || commentCount > 0 || voteCount > 0;
+  const session = await mongoose.startSession();
+  const now = new Date();
 
-  /**
-   * CASE 1: No activity → Hard delete
-   */
+  try{
+    session.startTransaction();
 
-  if (!hasActivity) {
-    await User.findByIdAndDelete({ _id: userId });
+    /**
+     * CASE 1: No activity → Hard delete
+     */
+
+    if (!hasActivity) {
+      await User.findByIdAndDelete({ _id: userId }, { session });
+      await Vote.deleteMany({ userId }, { session }); // defensive
+      await Post.deleteMany({ userId }, { session });
+      await Comment.deleteMany({ userId }, { session });
+
+      await session.commitTransaction();
+
+      return res.status(200).json({
+        success: true,
+        message: "User account permanently deleted",
+      });
+    }
+
+    /**
+     * CASE 2: Has activity → Soft delete + cascade hide
+     */
+
+
+    await User.updateOne(
+      { _id: userId },
+      { $set: { isDeleted: true, deletedAt: now } },
+      { session }
+    );
+
+    await Post.updateMany(
+      { userId, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: now } }
+    );
+
+    await Comment.updateMany(
+      { userId, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: now } }
+    );
+    
+    await session.commitTransaction();
 
     return res.status(200).json({
       success: true,
-      message: "User account permanently deleted",
+      message: "User account is deleted successfully",
     });
+  }catch(error){
+    await session.abortTransaction();
+    throw error;
+  } finally{
+    session.endSession();
   }
-
-  /**
-   * CASE 2: Has activity → Soft delete + cascade hide
-   */
-
-  const now = new Date();
-
-  user.isDeleted = true;
-  user.deletedAt = now;
-  await user.save();
-
-  await Post.updateMany(
-    { userId, isDeleted: false },
-    { $set: { isDeleted: true, deletedAt: now } }
-  );
-
-  await Comment.updateMany(
-    { userId, isDeleted: false },
-    { $set: { isDeleted: true, deletedAt: now } }
-  );
-
-  return res.status(200).json({
-    success: true,
-    message: "User account is deleted successfully",
-  });
 });
