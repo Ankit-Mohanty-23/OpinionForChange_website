@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Comment from "../models/comment.model.js";
 import Vote from "../models/vote.model.js";
 import Post from "../models/post.model.js";
@@ -103,7 +104,7 @@ export const deletePost = asyncHandler(async (req, res)  => {
   const userId = req.user?._id;
   const { postId } = req.params;
 
-  const post = await Post.findById(postId).exec();
+  const post = await Post.findById(postId).lean();
 
   if (!post || post.isDeleted) {
     throw new AppError("Post not found", 404);
@@ -119,45 +120,74 @@ export const deletePost = asyncHandler(async (req, res)  => {
   ]);
 
   const hasEngagement = commentCount > 0 || voteCount > 0;
+  //Create new mongoose session
+  const session = await mongoose.startSession();
+  const now = new Date();
   
-  //hard delete a post
-  if(!hasEngagement){
-      //Delete all media files from Cloudinary
-    if (post.media && post.media.length > 0) {
-      for (const item of post.media) {
-        if (item.public_id) {
-          await cloudinary.uploader.destroy(item.public_id, {
-            resource_type: item.type === "video" ? "video" : "image",
-          });
+  try{
+    session.startTransaction();
+
+    //hard delete a post
+    if(!hasEngagement){
+      await Post.deleteOne({ _id: postId }, { session });
+      await Comment.deleteMany({ postId }, { session });
+      await Vote.deleteMany(
+        { targetId: postId, targetType: "Post" },
+        { session }
+      );
+
+      await session.commitTransaction();
+
+        //Delete all media files from Cloudinary
+      if (post.media && post.media?.length > 0) {
+        for (const item of post.media) {
+          if (item.public_id) {
+            try{
+              await cloudinary.uploader.destroy(item.public_id, {
+                resource_type: item.type === "video" ? "video" : "image",
+              });
+            }catch(err){
+              logger.error({
+                message: "Cloudinary cleanup failed",
+                postId,
+                publicId: item.public_id,
+                error: err.message,
+              });
+            }
+          }
         }
-      }
+      }      
+
+      return res.status(200).json({
+        success: true,
+        message: "Post permanently deleted"
+      });
     }
 
-    await Post.deleteOne({ _id: postId });
-    await Comment.deleteMany({ postId })
+    await Post.updateOne(
+      { _id: postId },
+      { $set: { isDeleted: true, deletedAt: now } },
+      { session }
+    );
+
+    await Comment.updateMany(
+      { postId, isDeleted: false },
+      { $set: { isDeleted: true, deletedAt: now } },
+      { session }
+    );
+
+    await session.commitTransaction();
 
     return res.status(200).json({
       success: true,
-      message: "Post deleted by user"
+      message: "Post deleted successfully",
     });
+  }catch(error){
+    await session.abortTransaction();
+    throw error;
+  }finally{
+    session.endSession();
   }
-
-  const now = new Date();
-
-  await Post.updateOne(
-    { _id: postId },
-    { $set: { isDeleted: true, deletedAt: now } },
-  );
-
-  await Comment.updateMany(
-    { postId, isDeleted: false },
-    { $set: { isDeleted: true, deletedAt: now } },
-  );
-  
-  return res.status(200).json({
-    success: true,
-    message: "Post deleted successfully",
-  });
 });
 
 /**
