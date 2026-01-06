@@ -8,6 +8,7 @@ import Comment from "../models/comment.model.js";
 import Vote from "../models/vote.model.js";
 import AppError from "../util/AppError.js";
 import { asyncHandler } from "../util/asyncHandler.js";
+import logger from "../util/logger.js";
 
 /**
  * @desc    Create new User
@@ -150,27 +151,65 @@ export const addBio = asyncHandler(async (req, res) => {
 export const addProfilePic = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError("User not Found", 404);
+  const session = mongoose.startSession();
+  let oldProfilePic = null;
+
+  try{
+    session.startTransaction();
+
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      throw new AppError("User not Found", 404);
+    }
+
+    oldProfilePic = user.profile_pic || null;
+
+    user.profile_pic = {
+      type: "image",
+      url: req.file.path,
+      public_id: req.file.filename,
+    };
+
+    await user.save({ session });
+
+    await session.commitTransaction();
+
+    if(oldProfilePic?.public_id){
+      try{
+        await cloudinary.uploader.destroy(oldProfilePic.public_id);
+      } catch (err) {
+        logger.error({
+          message: "Old profile pic cleanup failed",
+          publicId: oldProfilePic.public_id,
+          error: err.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully",
+      profile_pic: user.profile_pic,
+    });
+  } catch(error) {
+    await session.abortTransaction();
+
+    if(req.file?.filename) {
+      try{
+        await cloudinary.uploader.destroy(req.file.filename);
+      } catch (cleanupError) {
+        logger.error({
+          message: "Profile pic rollback failed",
+          publicId: req.file.filename,
+          error: cleanupError.message,
+        });
+      }
+    }
+
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  if (user.profile_pic?.public_id) {
-    await cloudinary.uploader.destroy(user.profile_pic.public_id);
-  }
-
-  user.profile_pic = {
-    type: "image",
-    url: req.file.path,
-    public_id: req.file.filename,
-  };
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Profile picture updated successfully",
-    profile_pic: user.profile_pic,
-  });
 });
 
 /**
@@ -182,23 +221,24 @@ export const addProfilePic = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const user = await User.findById(userId);
-  if (!user || user.isDeleted) {
-    throw new AppError("User not Found", 404);
-  }
-
-  const [postCount, commentCount, voteCount] = await Promise.all([
-    Post.countDocuments({ userId }),
-    Comment.countDocuments({ userId }),
-    Vote.countDocuments({ userId }),
-  ]);
-
-  const hasActivity = postCount > 0 || commentCount > 0 || voteCount > 0;
   const session = await mongoose.startSession();
   const now = new Date();
 
   try{
     session.startTransaction();
+
+    const user = await User.findById(userId).session(session);
+    if (!user || user.isDeleted) {
+      throw new AppError("User not Found", 404);
+    }
+
+    const [postCount, commentCount, voteCount] = await Promise.all([
+      Post.countDocuments({ userId }).session(session),
+      Comment.countDocuments({ userId }).session(session),
+      Vote.countDocuments({ userId }).session(session),
+    ]);
+
+    const hasActivity = postCount > 0 || commentCount > 0 || voteCount > 0;
 
     /**
      * CASE 1: No activity → Hard delete
